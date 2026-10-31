@@ -37,7 +37,12 @@ pub enum ShipLineError {
 // Use MIN_SHIP and MAX_SHIP in the message instead of typing 2 and 5.
 impl fmt::Display for ShipLineError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TODO: {self:?}")
+        match self {
+            ShipLineError::MissingComma => write!(f, "Line must contain exactly one comma separating name and length."),
+            ShipLineError::EmptyName => write!(f, "Ship name cannot be empty."),
+            ShipLineError::BadLength(text) => write!(f, "Could not parse '{}' as a valid number.", text),
+            ShipLineError::LengthOutOfRange(len) => write!(f, "Length {} is outside the allowed range of 2-5.", len),
+        }
     }
 }
 
@@ -137,21 +142,24 @@ pub fn parse_ship_line(line: &str) -> Result<ShipSpec, ShipLineError> {
     if parts.len() != 2 {
         return Err(ShipLineError::MissingComma);
     }
+
     let name = parts[0].trim();
+    let length_str = parts[1].trim();
+
     if name.is_empty() {
-        return Err(ShipLineError::MissingComma);
+        return Err(ShipLineError::EmptyName);
     }
-    let length = match parts[1].trim().parse::<usize>() {
-        Ok(n) => n,
-        Err(_) => return Err(ShipLineError::MissingComma),
+
+    let length = match length_str.parse::<usize>() {
+        Ok(num) => num,
+        Err(_) => return Err(ShipLineError::BadLength(length_str.to_string())),
     };
-    if length < MIN_SHIP || length > MAX_SHIP {
-        return Err(ShipLineError::MissingComma);
+
+    if length < 2 || length > 5 {
+        return Err(ShipLineError::LengthOutOfRange(length));
     }
-    Ok(ShipSpec {
-        name: name.to_string(),
-        length,
-    })
+
+    Ok(ShipSpec { name: name.to_string(), length })
 }
 
 // TODO (Task 4): this is still the Week 10 behavior wrapped in Ok. Change it so:

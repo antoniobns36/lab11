@@ -43,7 +43,11 @@ pub enum CoordError {
 // Study DataError in data.rs: it is a finished example of this impl.
 impl fmt::Display for CoordError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TODO: {self:?}")
+        match self {
+            CoordError::BadFormat => write!(f, "type a column letter and a row number, like B7"),
+            CoordError::ColumnOutOfRange(ch) => write!(f, "column {} is off the board (A-J)", ch),
+            CoordError::RowOutOfRange(row) => write!(f, "row {} is off the board (1-10)", row),
+        }
     }
 }
 
@@ -179,23 +183,33 @@ pub fn all_sunk(board: &Board) -> bool {
 // and RowOutOfRange(number) when the row is 0 or past 10. Check the column first.
 // Use a match on parse::<usize>(), not map_err.
 pub fn parse_coord(text: &str) -> Result<(usize, usize), CoordError> {
-    let text = text.trim();
-    let first = match text.chars().next() {
-        Some(c) => c,
-        None => return Err(CoordError::BadFormat),
-    };
-    if !first.is_ascii_alphabetic() {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
         return Err(CoordError::BadFormat);
     }
-    let row_number = match text[1..].trim().parse::<usize>() {
-        Ok(n) => n,
+
+    let mut chars = trimmed.chars();
+    let first_char = chars.next().ok_or(CoordError::BadFormat)?;
+    let rest: String = chars.collect();
+    let col_upper = first_char.to_ascii_uppercase();
+    if !('A'..='J').contains(&col_upper) {
+        return Err(CoordError::ColumnOutOfRange(col_upper));
+    }
+    if rest.is_empty() {
+        return Err(CoordError::BadFormat);
+    }
+    let row_num = match rest.parse::<usize>() {
+        Ok(num) => num,
         Err(_) => return Err(CoordError::BadFormat),
     };
-    let col = (first.to_ascii_uppercase() as usize) - ('A' as usize);
-    if col >= SIZE || row_number < 1 || row_number > SIZE {
-        return Err(CoordError::BadFormat);
+    if row_num < 1 || row_num > 10 {
+        return Err(CoordError::RowOutOfRange(row_num));
     }
-    Ok((row_number - 1, col))
+
+    let row_idx = row_num - 1;
+    let col_idx = (col_upper as u8 - b'A') as usize;
+
+    Ok((row_idx, col_idx))
 }
 
 // One character per cell. Ships are hidden unless `reveal` is true.
